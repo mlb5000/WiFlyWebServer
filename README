@@ -1,0 +1,7 @@
+VERY early implementation of a single-connection Web Server hosted through a Roving Networks WiFly Module.
+
+Set ACCESS_POINT and PASSPHRASE in WebServerDemo.pde to get the WiFly to connect to your router.
+
+Environment requires:
+  * ArduPilot-Mega make build environment
+  * drop this directory into the ArduPilot-Mega/libraries directory and run 'make'.
