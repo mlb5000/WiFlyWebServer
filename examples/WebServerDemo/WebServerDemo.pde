@@ -49,15 +49,11 @@ void setup () {
   Serial.begin(115200);
   WIFLY.begin(9600);
  
-  fpl("Starting");
   pinMode(TASK1_PIN, OUTPUT);
   pinMode(TASK2_PIN, OUTPUT);
   digitalWrite(TASK1_PIN, LOW);
   digitalWrite(TASK2_PIN, LOW);
   
-  fpl("Configuring WiFly module");
-  configureWify();
-
   /* Create binary semaphore used to protect printing resource.
    * A binary semaphore is acceptable because it is only used from
    * two tasks, and therefore cannot create a priority inversion. */
@@ -346,6 +342,11 @@ int readFromWiFly(char *outBuf, unsigned *bufSize, unsigned to_secs, unsigned de
 void task1_func(void *params)
 {
   /* Ignoring the semaphore used to protect printing for now. */
+  fpl("Starting");
+  
+  fpl("Configuring WiFly module");
+  configureWify();
+  
   fpl("1: Entering Task");
   /* In the same way arduino would call loop(), we'll call task1_loop. */
   for(;;) {
