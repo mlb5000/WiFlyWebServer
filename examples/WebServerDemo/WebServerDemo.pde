@@ -21,16 +21,16 @@ RTOSSerialPort2(Serial2);
 #define WIFLY Serial2
 
 /** @brief the access point to connect to */
-#define ACCESS_POINT "BAKERS"
+#define ACCESS_POINT "<access_point>"
 
 /** @brief the passphrase to connect to the access point */
-#define PASSPHRASE "skiliberty"
+#define PASSPHRASE "<passphrase>"
 
 void *task1_handle;
 void *task2_handle;
 xSemaphoreHandle printing_semphr;
 
-int sendCommand(const char *command, const char *expectedResponse, unsigned delay_ms=10);
+int sendCommand(const char *command, const char *expectedResponse, unsigned delay_ms=0);
 void flushSerial(bool display=false, unsigned to_sec=3, unsigned delay_ms=10);
 
 // Pins are 17 for INCOMING TO Arduino, 16 for OUTGOING TO Wifly
@@ -39,10 +39,10 @@ void flushSerial(bool display=false, unsigned to_sec=3, unsigned delay_ms=10);
 //  16 - send     RX   (Send from Arduino, Receive to WiFly) 
 //WiFlySerial WiFly(17,16); 
 
-#define fp(string) Serial.printf_P(PSTR(string));
+#define fp(string) Serial.print_P(PSTR(string));
 #define fpl(string) Serial.println_P(PSTR(string));
 
-#define wfp(string) Serial2.printf_P(PSTR(string));
+#define wfp(string) Serial2.print_P(PSTR(string));
 
 void setup () {
   /* Use the standard Arduino HardwareSerial library for serial. */
@@ -66,7 +66,6 @@ void setup () {
               NULL, 1, &task1_handle);
   /*xTaskCreate(task2_func, (signed portCHAR *)"task2", 200,
               NULL, 1, &task2_handle);*/
-  fpl("Starting tasks");
   vTaskStartScheduler();
   /* code after vTaskStartScheduler, and code in loop(), is never reached. */
 }
@@ -82,9 +81,9 @@ typedef struct wiflyConfig_t {
   const prog_char *errorMessage;  
 } wiflyConfig_t;
 
-#define WIFLY_OPTION(num, msg1, cmd1, fail1) const prog_char msg##num[] PROGMEM = msg1; \
-const prog_char cmd##num[] PROGMEM = cmd1; \
-const prog_char fail##num[] PROGMEM = fail1;
+#define WIFLY_OPTION(num, msg1, cmd1, fail1) PROGMEM const char msg##num[] = msg1; \
+PROGMEM const char cmd##num[] = cmd1; \
+PROGMEM const char fail##num[] = fail1;
 
 WIFLY_OPTION(1, "Disabling echoback", "set u m 0", "Fai1ed to disable echoback");
 WIFLY_OPTION(2, "Setting UART buffer size", "set c s 1420", "Failed to set buffer size");
@@ -101,7 +100,7 @@ WIFLY_OPTION(11, "Setting access point", "set w s " \
 ACCESS_POINT, "Failed to set access point");
 
 /** @brief The configuration options to issue to the WiFly module (in order) */
-wiflyConfig_t options[] = {
+static wiflyConfig_t options[] = {
   {msg1, cmd1, fail1},
   {msg2, cmd2, fail2},
   {msg3, cmd3, fail3},
@@ -116,6 +115,25 @@ wiflyConfig_t options[] = {
 };
 
 const char *AOK = "AOK";
+/* Task func is a void(void *). We passed NULL for params in xTaskCreate,
+ * so we ignore them.
+ * task1_func will be entered once after the scheduler begins. It can perform
+ * any required setup and then loop indefinitely.
+ * If task1_func were to return, you should let the scheduler know by calling
+ * vTaskDelete. */
+void task1_func(void *params)
+{
+  /* Ignoring the semaphore used to protect printing for now. */
+  fpl("Starting");
+  
+  configureWify();
+  
+  fpl("1: Entering Task");
+  /* In the same way arduino would call loop(), we'll call task1_loop. */
+  for(;;) {
+    task1_loop();
+  }
+}
 
 /** @brief Configure the WiFly module
 
@@ -143,24 +161,25 @@ void configureWify() {
   
   for (i = 0; i < sizeof(options) / sizeof(wiflyConfig_t); i++) {
     fp("  ");
-    Serial.printf_P(options[i].message);
+    Serial.print_P((const prog_char_t*)options[i].message);
     fp(": ");
     if (0 != sendCommand(options[i].command, AOK)) {
       fp("    ");
-      Serial.printf_P(options[i].errorMessage);
-      fpl("    Retrying...");
+      Serial.println_P((const prog_char_t*)options[i].errorMessage);
+      fpl("    Retrying.");
       flushSerial();
       delay(1000);
+      fpl("    ");
       if (0 != sendCommand(options[i].command, AOK, 50)) {
-        fpl("    Still failed...");
+        fpl("Still failed");
         goto CLEANUP; 
       }
       else {
-        fpl("    Success!");
+        fpl("Option set");
       }
     }
     else {
-      fpl("success");
+      fpl("done");
     }
   }
 
@@ -195,6 +214,88 @@ void flushSerial(bool display, unsigned to_sec, unsigned delay_ms) {
     }
     delay(delay_ms);
   }
+  
+  Serial.print("DONE");
+}
+
+/** @brief Enable WiFly command mode
+
+    @pre Will only work during initial hard startup, resets will not work
+    
+    @retval 0 Success
+    @retval -1 Failed to enable command mode
+*/
+int enableCommandMode() {
+  unsigned size = RESPONSE_SIZE;
+  char response[RESPONSE_SIZE];
+  int retval = 0;
+  int maxTries = 3;
+  int tries = 0;
+  
+  do {
+    size = RESPONSE_SIZE;
+    tries++;
+    wfp("$$$");
+    delay(275); //WiFly requires a 250ms delay following this sequence
+    if (0 == retval && -1 == readFromWiFly(response, &size, 10, 100)) {
+      fpl("Timed out while reading from WiFly");
+      retval = -1;
+    }
+
+    if (response[0] != 'C' || response[1] != 'M' || response[2] != 'D') {
+      fpl("Did not receive expected CMD response");
+      retval = -1;
+    }
+  } while(retval != 0 && tries < maxTries);
+  
+  return retval;
+}
+
+/** @brief Read a command over WiFly (i.e. WIFLY)
+    @param [out] outBuf The buffer which will contain the output
+    @param [in/out] bufSize The maximum size of outBuf on in, number of bytes written on out
+    @param [opt] to_secs The maximum number of seconds to wait for a response (infinite by default)
+    @param [in] delay_ms The number of milliseconds to delay between UART reads
+    
+    @retval 0 Success
+    @retval -1 Timed out
+    @retval -2 NULL argument
+*/ 
+int readFromWiFly(char *outBuf, unsigned *bufSize, unsigned to_secs, unsigned delay_ms) {
+  unsigned long begin = millis();
+  unsigned received = 0;
+  char receivedByte = 0;
+  int retval = 0;
+  
+  if (NULL == outBuf || NULL == bufSize) {
+    retval = -2;
+  }
+  
+  if (retval == 0) {
+    while(!WIFLY.available() && 0 == retval) {
+      if ((millis()-begin)/1000 > to_secs) {
+        fpl("Timed out 1");
+        retval = -1;
+      }
+    } 
+  }
+  
+  if (retval == 0) {
+    while (WIFLY.available() && received < *bufSize-1) {
+      receivedByte = WIFLY.read();
+      outBuf[received++] = receivedByte;
+      
+      if ((millis()-begin) / 1000 > to_secs) {
+        retval = -1;
+        fpl("Timed out");
+        break;
+      }
+    }
+    outBuf[received] = '\0';
+    *bufSize = received;
+  }
+  
+  return retval;
 }
 
 /** @brief Sends a command over UART to the WiFly module
@@ -219,8 +320,7 @@ int sendCommand(const prog_char *command, const char *expectedResponse, unsigned
   }
   
   if (0 == retval) {
-    WIFLY.printf_P(command);
-    wfp("\r"); //commit command
+    WIFLY.print_P((const prog_char_t *)command);
   }
   
   if (0 == retval && -1 == readFromWiFly(response, &size, 10, delay_ms)) {
@@ -239,39 +339,6 @@ int sendCommand(const prog_char *command, const char *expectedResponse, unsigned
   return retval;
 }
 
-/** @brief Enable WiFly command mode
-
-    @pre Will only work during initial hard startup, resets will not work
-    
-    @retval 0 Success
-    @retval -1 Failed to enable command mode
-*/
-int enableCommandMode() {
-  unsigned size = RESPONSE_SIZE;
-  char response[RESPONSE_SIZE];
-  int retval = 0;
-  int maxTries = 3;
-  int tries = 0;
-  
-  do {
-    tries++;
-    wfp("$$$");
-    WIFLY.flush();
-    delay(275); //WiFly requires a 250ms delay following this sequence
-    if (0 == retval && -1 == readFromWiFly(response, &size, 10, 100)) {
-      fpl("Timed out while reading from WiFly");
-      retval = -1;
-    }
-
-    if (response[0] != 'C' || response[1] != 'M' || response[2] != 'D') {
-      fpl("Did not receive expected CMD response");
-      retval = -1;
-    } 
-  } while(retval != 0 && tries < maxTries);
-  
-  return retval;
-}
-
 const prog_char exitCmd[] = "exit\r";
 
 /** @brief Disable WiFly command mode
@@ -281,77 +348,6 @@ const prog_char exitCmd[] = "exit\r";
 */
 int disableCommandMode() {
   return sendCommand(exitCmd, "EXIT");
-}
-
-/** @brief Read a command over WiFly (i.e. WIFLY)
-    @param [out] outBuf The buffer which will contain the output
-    @param [in/out] bufSize The maximum size of outBuf on in, number of bytes written on out
-    @param [opt] to_secs The maximum number of seconds to wait for a response (infinite by default)
-    @param [in] delay_ms The number of milliseconds to delay between UART reads
-    
-    @retval 0 Success
-    @retval -1 Timed out
-    @retval -2 NULL argument
-*/ 
-int readFromWiFly(char *outBuf, unsigned *bufSize, unsigned to_secs, unsigned delay_ms) {
-  unsigned long begin = millis();
-  unsigned received = 0;
-  char receivedByte = 0;
-  int retval = 0;
-  
-  if (NULL == outBuf || NULL == bufSize) {
-    retval = -2;
-  }
-  
-  if (retval == 0) {
-    while(!WIFLY.available()) {
-      delay(10);
-      if ((millis()-begin)/1000 > to_secs) {
-        retval = -1;
-      }
-    } 
-  }
-  
-  if (retval == 0) {
-    while (WIFLY.available() && received < *bufSize-1) {
-      receivedByte = WIFLY.read();
-      outBuf[received] = receivedByte;
-      received++;
-      
-      delay(delay_ms);
-      
-      if ((millis()-begin) / 1000 > to_secs) {
-        retval = -1;
-        fpl("Timed out");
-        break;
-      }
-    }
-    outBuf[received+1] = '\0';
-    *bufSize = received;
-  }
-  
-  return retval;
-}
-
-/* Task func is a void(void *). We passed NULL for params in xTaskCreate,
- * so we ignore them.
- * task1_func will be entered once after the scheduler begins. It can perform
- * any required setup and then loop indefinitely.
- * If task1_func were to return, you should let the scheduler know by calling
- * vTaskDelete. */
-void task1_func(void *params)
-{
-  /* Ignoring the semaphore used to protect printing for now. */
-  fpl("Starting");
-  
-  fpl("Configuring WiFly module");
-  configureWify();
-  
-  fpl("1: Entering Task");
-  /* In the same way arduino would call loop(), we'll call task1_loop. */
-  for(;;) {
-    task1_loop();
-  }
 }
 
 void task1_loop() {
