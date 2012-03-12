@@ -3,6 +3,7 @@
 #include "WebServerDemo.h"
 #include <ArduinoFreeRTOS.h>
 #include <RTOSSerial.h>
+#include <WiFlySerial.h>
 
 /* Default pins to 12 & 13 for digital readout of current task. */
 #define TASK1_PIN (12)
@@ -45,7 +46,6 @@ void flushSerial(bool display=false, unsigned to_sec=3, unsigned delay_ms=10);
 #define wfp(string) Serial2.print_P(PSTR(string));
 
 void setup () {
-  /* Use the standard Arduino HardwareSerial library for serial. */
   Serial.begin(115200);
   WIFLY.begin(9600);
  
@@ -214,8 +214,6 @@ void flushSerial(bool display, unsigned to_sec, unsigned delay_ms) {
     }
     delay(delay_ms);
   }
-  
-  Serial.print("DONE");
 }
 
 /** @brief Enable WiFly command mode

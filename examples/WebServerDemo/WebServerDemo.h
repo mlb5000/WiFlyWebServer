@@ -141,6 +141,4 @@ static const char page[] PROGMEM = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n
 
 static PGM_P string_table[] PROGMEM = {page};
 
-
-
 #endif
