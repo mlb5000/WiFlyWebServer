@@ -10,6 +10,9 @@
 #include "WebServerUnitTests.h"
 #include <stdlib.h> // for malloc and free
 
+void* operator new(size_t size) { return malloc(size); }
+void operator delete(void* ptr) { free(ptr); }
+  
 void *task1_handle;
 
 /** @brief RTOSSerial port replacement for Serial */
@@ -65,6 +68,7 @@ void task1_func(void *params) {
   RUN_TEST(test_readRemaining_HandlesZeroLengthResponseBuffer, 0);
   RUN_TEST(test_readRemaining_HandlesNullResponseLength, 0);
   RUN_TEST(test_readRemaining_AfterAllReadReturnsFailed, 0);
+  RUN_TEST(test_processRequest_Returns404WhenFileNotFound, 0);
 
   UnityEnd();
   
