@@ -248,3 +248,34 @@ void test_processRequest_Returns404WhenFileNotFound()
   TEST_ASSERT_EQUAL_INT(0, retval);
   TEST_ASSERT_EQUAL_UINT8_ARRAY((uint8_t *)expected, response, size); 
 }
+
+void test_processRequest_MultipleChunks()
+{
+  static const char *expected = "HTTP/1.1 200 OK\r\n" \
+  "Content-Length: 129\r\n" \
+  "Content-Type text/html; charset=utf-8\r\n" \
+  "Transfer-Encoding: chunked\r\n\r\n";
+  
+  /*static const char *expected2 = "80\r\n" \
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus vel vestibulum velit. Praesent sagittis mi leo. Nam lorem sed";
+  
+  static const char *expected3 = ".\r\n0\r\n\r\n";*/
+  
+  givenPageContents("index.html", "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus vel vestibulum velit. Praesent sagittis mi leo. Nam lorem sed.");
+  
+  //givenPageContents("index.html", "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus vel vestibulum velit.");
+  
+  int retval = webServer->processRequest(ROOT_GET_REQUEST, strlen(ROOT_GET_REQUEST), response, &size);
+  TEST_ASSERT_EQUAL_INT(1, retval);
+  TEST_ASSERT_EQUAL_UINT8_ARRAY((uint8_t *)expected, response, size);
+  
+  /*size = MAX_RESPONSE;
+  retval = webServer->readRemaining(response, &size);
+  TEST_ASSERT_EQUAL_INT(1, retval);
+  TEST_ASSERT_EQUAL_UINT8_ARRAY((uint8_t *)expected2, response, size);
+  
+  size = MAX_RESPONSE;
+  retval = webServer->readRemaining(response, &size);
+  TEST_ASSERT_EQUAL_INT(0, retval);
+  TEST_ASSERT_EQUAL_UINT8_ARRAY((uint8_t *)expected3, response, size);*/
+}

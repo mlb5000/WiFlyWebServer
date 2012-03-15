@@ -16,5 +16,6 @@ void test_readRemaining_HandlesZeroLengthResponseBuffer(void);
 void test_readRemaining_HandlesNullResponseLength(void);
 void test_readRemaining_AfterAllReadReturnsFailed(void);
 void test_processRequest_Returns404WhenFileNotFound(void);
+void test_processRequest_MultipleChunks(void);
 
 #endif
