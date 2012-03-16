@@ -6,6 +6,8 @@
 
 #include <WebServer.h>
 #include <FileSystem.h>
+#if __AVR__
 #include <MemoryFree.h>
+#endif
 
 #endif // __WIFLY_WEBSERVER_H__

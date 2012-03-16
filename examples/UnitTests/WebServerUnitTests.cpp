@@ -9,6 +9,7 @@ WebServer *webServer;
 #define MAX_RESPONSE 200
 size_t size = MAX_RESPONSE;
 char response[MAX_RESPONSE] = {0};
+typedef unsigned char uint8_t;
 
 static const char* ROOT_GET_REQUEST = "GET / HTTP/1.1";
 
@@ -249,6 +250,9 @@ void test_processRequest_Returns404WhenFileNotFound()
   TEST_ASSERT_EQUAL_UINT8_ARRAY((uint8_t *)expected, response, size); 
 }
 
+/** @test Test that web server can handle splitting a file that is larger than
+    a single buffer into multiple chunks with the correct trailer.
+*/
 void test_processRequest_MultipleChunks()
 {
   static const char *expected = "HTTP/1.1 200 OK\r\n" \
@@ -256,20 +260,18 @@ void test_processRequest_MultipleChunks()
   "Content-Type text/html; charset=utf-8\r\n" \
   "Transfer-Encoding: chunked\r\n\r\n";
   
-  /*static const char *expected2 = "80\r\n" \
+  static const char *expected2 = "80\r\n" \
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus vel vestibulum velit. Praesent sagittis mi leo. Nam lorem sed";
   
-  static const char *expected3 = ".\r\n0\r\n\r\n";*/
+  static const char *expected3 = "01\r\n.\r\n0\r\n\r\n";
   
   givenPageContents("index.html", "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus vel vestibulum velit. Praesent sagittis mi leo. Nam lorem sed.");
-  
-  //givenPageContents("index.html", "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus vel vestibulum velit.");
   
   int retval = webServer->processRequest(ROOT_GET_REQUEST, strlen(ROOT_GET_REQUEST), response, &size);
   TEST_ASSERT_EQUAL_INT(1, retval);
   TEST_ASSERT_EQUAL_UINT8_ARRAY((uint8_t *)expected, response, size);
   
-  /*size = MAX_RESPONSE;
+  size = MAX_RESPONSE;
   retval = webServer->readRemaining(response, &size);
   TEST_ASSERT_EQUAL_INT(1, retval);
   TEST_ASSERT_EQUAL_UINT8_ARRAY((uint8_t *)expected2, response, size);
@@ -277,5 +279,5 @@ void test_processRequest_MultipleChunks()
   size = MAX_RESPONSE;
   retval = webServer->readRemaining(response, &size);
   TEST_ASSERT_EQUAL_INT(0, retval);
-  TEST_ASSERT_EQUAL_UINT8_ARRAY((uint8_t *)expected3, response, size);*/
+  TEST_ASSERT_EQUAL_UINT8_ARRAY((uint8_t *)expected3, response, size);
 }

@@ -1,2 +1,10 @@
 *.DS_STORE
 *.tmproj
+ipch
+Debug
+Release
+*.opensdf
+*.sdf
+*.suo
+*.filters
+*.user

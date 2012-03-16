@@ -2,7 +2,13 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef __AVR__
 #include <avr/pgmspace.h>
+#else
+#define strncasecmp_P strncmp
+#define strcpy_P strcpy
+#define strlen_P strlen
+#endif
 
 #define min(a,b) a >= b ? b : a
 
@@ -16,7 +22,7 @@ static const PROGMEM char ERR_200[] = "HTTP/1.1 200 OK";
 static const PROGMEM char ERR_404[] = "HTTP/1.1 404 File Not Found";
 static const PROGMEM char ERR_500[] = "HTTP/1.1 500 Internal Server Error";
 
-//HTTP reponse header fields
+//HTTP response header fields
 static const char CONTENT_TYPE[] PROGMEM = {"Content-Type text/html; charset=utf-8"};
 static const char TRANSFER_ENCODING[] PROGMEM = {"Transfer-Encoding: chunked"};
 static const char FINAL_CHUNK[] PROGMEM = {"0\r\n\r\n"};
@@ -166,14 +172,15 @@ int WebServer::readRemaining(
     return 2;
   }
   
+  size_t bytesToRead = *resSize - bytesFilled;
   do
   {
-    size_t bytesToRead = *resSize - bytesFilled;
+    bytesToRead = *resSize - bytesFilled;
     
     retval = chunkedFileRead(tmpResponse, &bytesToRead);
     bytesFilled += bytesToRead;
     tmpResponse += bytesToRead;
-  } while(retval == 1 && bytesFilled < *resSize);
+  } while(bytesToRead > 0 && retval == 1 && bytesFilled < *resSize);
   
   *resSize = bytesFilled;
   
@@ -239,9 +246,12 @@ int WebServer::chunkedFileRead(
   memcpy(tmpOutBuf, m_tmpFileBuf, bytesRead);
   tmpOutBuf += bytesRead;
   
-  //append trailer
-  strcpy_P(tmpOutBuf, HTTP_TRAILER);
-  tmpOutBuf += strlen_P(HTTP_TRAILER);
+  //only append the trailer if we have read all the data for this chunk
+  if (0 == retval || m_nextCallFinalize) {
+	  //append trailer
+	  strcpy_P(tmpOutBuf, HTTP_TRAILER);
+	  tmpOutBuf += strlen_P(HTTP_TRAILER);
+  }
   
   *resSize = tmpOutBuf-outBuf;
   
