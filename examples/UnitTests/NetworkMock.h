@@ -9,7 +9,11 @@
 class NetworkMock : public Network
 {
 public:
+#ifdef _WIN32
   NetworkMock() {}
+#else
+  NetworkMock() : m_bytes(0) {}
+#endif
   virtual ~NetworkMock() {}
 
   virtual int writeByte(unsigned char c);

@@ -55,7 +55,7 @@ void givenPageContents(const char *path, const char *fileContents)
   fileSystem->addFakeFile((XCHAR*)path, (XCHAR*)fileContents);
 }
 
-#define TEST_ASSERT_EQUAL_NETWORK_BYTES(expected, num_elements)                              UNITY_TEST_ASSERT_EQUAL_UINT8_ARRAY(expected, network->getBytesWritten(), min(num_elements, network->getNumBytesWritten()), __LINE__, NULL)
+#define TEST_ASSERT_EQUAL_NETWORK_BYTES(expected, num_elements)                              UNITY_TEST_ASSERT_EQUAL_UINT8_ARRAY(expected, network->getBytesWritten(), num_elements, __LINE__, NULL)
 
 /** @test Test correct behavior when a simple 'GET /' request is received */
 void test_processRequest_SimpleGetRequest()
@@ -75,6 +75,7 @@ void test_processRequest_SimpleGetRequest()
   result = webServer->processRequest(ROOT_GET_REQUEST, strlen(ROOT_GET_REQUEST));
   
   TEST_ASSERT_EQUAL_INT(0, result);
+  TEST_ASSERT_EQUAL_INT(strlen(expected), network->getNumBytesWritten());
   TEST_ASSERT_EQUAL_NETWORK_BYTES((uint8_t *)expected, strlen(expected));
 }
 
@@ -98,6 +99,7 @@ void test_processRequest_GetRequestBufferTooSmall(void)
   result = webServer->processRequest(ROOT_GET_REQUEST, strlen(ROOT_GET_REQUEST));
   
   TEST_ASSERT_EQUAL_INT(0, result);
+  TEST_ASSERT_EQUAL_INT(strlen(expected), network->getNumBytesWritten());
   TEST_ASSERT_EQUAL_NETWORK_BYTES((uint8_t *)expected, strlen(expected));
 }
 
@@ -111,6 +113,7 @@ void test_processRequest_Returns404WhenFileNotFound()
   int retval = webServer->processRequest(ROOT_GET_REQUEST, strlen(ROOT_GET_REQUEST));
   
   TEST_ASSERT_EQUAL_INT(0, retval);
+  TEST_ASSERT_EQUAL_INT(strlen(expected), network->getNumBytesWritten());
   TEST_ASSERT_EQUAL_NETWORK_BYTES((uint8_t *)expected, strlen(expected));
 }
 
@@ -135,6 +138,7 @@ void test_processRequest_MultipleChunks()
   int retval = webServer->processRequest(ROOT_GET_REQUEST, strlen(ROOT_GET_REQUEST));
 
   TEST_ASSERT_EQUAL_INT(0, retval);
+  TEST_ASSERT_EQUAL_INT(strlen(expected), network->getNumBytesWritten());
   TEST_ASSERT_EQUAL_NETWORK_BYTES((uint8_t *)expected, strlen(expected));
 }
 
@@ -157,5 +161,6 @@ void test_processRequest_GetAFileOtherThanRoot()
   int retval = webServer->processRequest(request, strlen(request));
 
   TEST_ASSERT_EQUAL_INT(0, retval);
+  TEST_ASSERT_EQUAL_INT(strlen(expected), network->getNumBytesWritten());
   TEST_ASSERT_EQUAL_NETWORK_BYTES((uint8_t *)expected, strlen(expected));
 }

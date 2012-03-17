@@ -84,7 +84,7 @@ int WebServer::processRequest(
   //get request type
   p = strtok(tmpRequestCopy, " ");
   //for some reason strncasecmp_P was giving me problems, so GET_REQUEST is not a prog_char
-  res = strncasecmp_P(p, GET_REQUEST, min(strlen(p), strlen("GET")));
+  res = strncasecmp_P(p, GET_REQUEST, min(strlen(p), strlen_P(GET_REQUEST)));
   if (0 != res) {
     free(tmpRequest);
     return 2;
@@ -105,6 +105,7 @@ int WebServer::processRequest(
   //if stat failed, assume the file does not exist
   if (FR_OK != fresult) {
     netWrite_P(ERR_404, strlen_P(ERR_404));
+    netWrite_P(HTTP_TRAILER, strlen(HTTP_TRAILER));
     free(tmpRequest);
     return 0;
   }
@@ -116,6 +117,7 @@ int WebServer::processRequest(
   
   if (FR_OK != fresult) {
     netWrite_P(ERR_500, strlen_P(ERR_500));
+    netWrite_P(HTTP_TRAILER, strlen(HTTP_TRAILER));
     return 0;
   }
   
@@ -125,8 +127,8 @@ int WebServer::processRequest(
 
   //fill in Content-Length
   char tmpBuf[30];
-  written = sprintf(tmpBuf, CONTENT_LENGTH_FMT, info.fsize);
-  netWrite_P(tmpBuf, written);
+  written = sprintf_P(tmpBuf, CONTENT_LENGTH_FMT, info.fsize);
+  netWrite(tmpBuf, written);
   netWrite_P(HTTP_TRAILER, strlen(HTTP_TRAILER));
 
   //fill in Content-Type
@@ -176,11 +178,13 @@ void WebServer::chunkedFileRead(FIL *file)
 }
 
 void WebServer::netWrite_P(const char *toWrite, size_t size) {
-  size_t i;
-
-  for (i = 0; i < size; i++) {
-    m_network.writeByte(toWrite[i]);
+#ifdef _WIN32
+  netWrite(toWrite, size);
+#else
+  while (pgm_read_byte(toWrite) != 0x00) {
+    m_network.writeByte(pgm_read_byte(toWrite++));
   }
+#endif
 }
 
 void WebServer::netWrite(const char *toWrite, size_t size) {

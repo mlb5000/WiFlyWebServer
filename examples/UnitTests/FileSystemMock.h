@@ -38,7 +38,7 @@ FileSystemMock::myf_open(FIL* file, const XCHAR* path, TBYTE modeFlags) const
     return FR_DISK_ERR;
   }
   
-  memcpy(file, &m_file, sizeof(FIL));
+  //memcpy(file, &m_file, sizeof(FIL));
   return FR_OK;
 }
 
