@@ -2,7 +2,9 @@
 #define NETWORK_MOCK_H
 
 #include "Network.h"
+#ifdef _WIN32
 #include <string>
+#endif
 
 class NetworkMock : public Network
 {
@@ -42,7 +44,7 @@ int NetworkMock::writeByte(unsigned char c) {
   m_bytesWritten.append(1, c);
 #else
   m_bytesWritten[m_bytes++] = c;
-#endif;
+#endif
   return c;
 }
 

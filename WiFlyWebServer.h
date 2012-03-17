@@ -6,6 +6,8 @@
 
 #define min(a,b) a >= b ? b : a
 
+int serial2Write(char c);
+
 #include <WebServer.h>
 #include <FileSystem.h>
 #if __AVR__

@@ -3,9 +3,9 @@
 
 #ifdef __AVR__
 #include <avr/pgmspace.h>
+#else
+typedef char prog_char;
 #endif
-
-typedef PROGMEM char prog_char;
 
 class Logger
 {

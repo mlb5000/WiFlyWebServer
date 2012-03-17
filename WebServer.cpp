@@ -148,8 +148,6 @@ int WebServer::processRequest(
 void WebServer::chunkedFileRead(FIL *file)
 {
   size_t bytesRead = 0;
-  int retval = 0;
-  size_t tmp = 0;
   char tmpBuf[10];
   int written;
 
