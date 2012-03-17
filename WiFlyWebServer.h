@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define min(a,b) a >= b ? b : a
+
 #include <WebServer.h>
 #include <FileSystem.h>
 #if __AVR__

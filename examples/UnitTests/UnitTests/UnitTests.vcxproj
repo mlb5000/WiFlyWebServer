@@ -90,6 +90,7 @@
     <ClInclude Include="..\WebServerUnitTests.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\Network.cpp" />
     <ClCompile Include="..\..\..\WebServer.cpp" />
     <ClCompile Include="..\unity.cpp" />
     <ClCompile Include="..\WebServerUnitTests.cpp" />

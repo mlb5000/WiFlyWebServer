@@ -2,6 +2,7 @@
 #define BAKERMATT_WEB_SERVER_H
 
 #include "Logger.h"
+#include "Network.h"
 #include "FileSystem.h"
 
 #define MIN_WEBSERVER_BUF_SIZE 128
@@ -9,7 +10,7 @@
 class WebServer
 {
 public:
-  WebServer(FileSystem &fileSystem);
+  WebServer(FileSystem &fileSystem, Network &network);
   ~WebServer() {}
   
   /** @brief Process a request and return a response
@@ -28,58 +29,23 @@ public:
   **/
   int processRequest(
       const char *request,
-      size_t reqSize,
-      char *response,
-      size_t *resSize);
-
-  /** @brief Continue reading bytes for a previous request
-
-      @param response [out] The response buffer to be filled
-      @param resSize [in/out] In - The maximum size of the response buffer
-          Out - The number of bytes populated in response
-
-      Call readRemaining to get the rest of the bytes for this response
-      
-      @retval 0 Success, Response is filled and no data remains
-      @retval 1 Success, Response is filled, more data remains
-      @retval 2 Failed
-  **/  
-  int readRemaining(
-      char *response,
-      size_t *resSize);
+      size_t reqSize);
 
 private:
   /** @brief Read a file in fixed size chunks
   
-      @param outBuf [out] Output buffer
-      @param resSize [in/out] In - max size of outBuf, Out - number of bytes filled
-      
-      @retval 0 Success, Response is filled and no data remains
-      @retval 1 Success, Response is filled, more data remains
-      @retval 2 Failed
+      @param file File to read
   */
-  int chunkedFileRead(
-    char *outBuf,
-    size_t *resSize);
-    
-  enum RequestType
-  {
-    NONE,
-    GET
-  };
+  void chunkedFileRead(FIL *file);
   
-  RequestType m_requestType;
-  
-  /** @brief Pointer to a string containing the file path to get */
-  char *m_getPath;
+  void netWrite(const char *toWrite, size_t size);
+  void netWrite_P(const char *toWrite, size_t size);
   
   FileSystem &m_fileSystem;
-  FIL m_file;
-  
-  char m_tmpFileBuf[MIN_WEBSERVER_BUF_SIZE];
-  
-  /** @brief Finalize the chunked get request on the next call */
-  bool m_nextCallFinalize;
+  Network &m_network;
+
+  #define TMP_FILE_BUF_SIZE 128
+  char m_tmpFileBuf[TMP_FILE_BUF_SIZE];
 };
 
 #endif
